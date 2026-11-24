@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<script>
+const portfolioRoute = new URL("portfolio.html", window.location.href);
+new URLSearchParams(window.location.search).forEach((value, key) => portfolioRoute.searchParams.set(key, value));
+window.location.replace(portfolioRoute.href);
+</script>
+<script>
+(() => {
+  const params = new URLSearchParams(window.location.search);
+  const bounds = ["fromX", "fromY", "fromWidth", "fromHeight", "fromCellX", "fromCellY", "fromCellWidth", "fromCellHeight"]
+    .map(key => Number(params.get(key)));
+  if (
+    params.get("collection") === "featured" &&
+    ["brand", "mobile", "system"].includes(params.get("image")) &&
+    bounds.every(Number.isFinite) &&
+    bounds[2] > 0 &&
+    bounds[3] > 0 &&
+    bounds[6] > 0 &&
+    bounds[7] > 0 &&
+    !window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  ) document.documentElement.classList.add("is-featured-entry");
+})();
+</script>
+<title>Image detail | Your Name</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f5f0e4;--ink:#1a1916;--mute:#706c63;--line:#c8c0af;--pad:clamp(16px,2.5vw,32px);--gap:1px}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 14px/1.6 "JetBrains Mono",ui-monospace,monospace}
+a{color:inherit;text-decoration:none}
+a:focus-visible{outline:2px solid currentColor;outline-offset:-4px}
+h1,h2,p{margin:0}
+.page{max-width:1200px;margin:0 auto;padding:0 var(--pad)}
+.grid{display:grid;gap:var(--gap);background:var(--line);border:1px solid var(--line)}
+.cols-3{grid-template-columns:repeat(3,1fr)}
+.cell{min-width:0;background:var(--bg);padding:var(--pad)}
+.span-2{grid-column:span 2}
+.section{margin-top:var(--pad)}
+header.grid{margin-top:var(--pad)}
+header .cell{display:flex;align-items:center;padding-block:14px}
+nav{display:flex;justify-content:flex-end;gap:24px;width:100%}
+nav a:hover,footer a:hover{text-decoration:underline;text-underline-offset:4px}
+.back-row{padding:clamp(12px,2vw,24px) 0 0}
+.back-button{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);padding:8px 12px;transition:background .15s,color .15s}
+.back-button:hover{background:var(--ink);color:var(--bg)}
+.showcase{padding:clamp(12px,min(3vw,4svh),48px);margin-bottom:var(--pad)}
+.cell.showcase,.cell.image-meta{border:7px solid rgba(150,162,174,.48);border-radius:22px;background:#dce1e6;box-shadow:0 2px 5px rgba(37,47,58,.09),inset 0 1px rgba(255,255,255,.9)}
+.image-stage-shell{position:relative;width:min(100%,108.8svh);margin-inline:auto;overflow:hidden;border-radius:16px}
+.image-stage{position:relative;width:100%;margin:0;aspect-ratio:16/10;overflow:hidden;border:1px solid var(--line);border-radius:16px;background:#dce1e6;transition:filter .3s ease}
+.image-stage span{position:absolute;inset:0;margin:auto;width:max-content;height:max-content;background:var(--bg);padding:4px 12px;color:var(--mute);font-size:12px}
+.stage-image{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
+.image-overlay{position:absolute;inset:auto 0 0;z-index:1;display:grid;gap:4px;padding:clamp(28px,6vw,64px) clamp(14px,3vw,28px) clamp(14px,3vw,24px);background:linear-gradient(transparent,rgba(22,31,40,.78));color:#fff;opacity:0;transform:translateY(6px);transition:opacity .22s ease,transform .28s ease}
+.image-overlay p{max-width:58ch;color:inherit;font-size:13px}
+.image-overlay .image-index{color:rgba(255,255,255,.82);font-size:11px}
+.image-stage-shell:hover .image-stage:not(.is-video),.image-stage-shell:focus-visible .image-stage:not(.is-video){filter:blur(3px)}
+.image-stage-shell:hover .image-overlay,.image-stage-shell:focus-visible .image-overlay{opacity:1;transform:none}
+.stage-video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#111}
+.video-player{position:absolute;inset:0;z-index:3;pointer-events:none}
+.video-player[hidden]{display:none}
+.video-play-button{position:absolute;top:50%;left:50%;display:grid;place-items:center;width:68px;height:68px;padding:0;transform:translate(-50%,-50%);border:1px solid rgba(255,255,255,.82);border-radius:50%;background:rgba(20,29,37,.78);box-shadow:0 3px 14px rgba(0,0,0,.32);color:#fff;cursor:pointer;pointer-events:auto;transition:opacity .2s,background .2s}
+.video-play-button:hover,.video-play-button:focus-visible{background:rgba(22,130,203,.92)}
+.video-play-button svg{width:26px;height:26px;fill:currentColor}
+.video-player.is-playing .video-play-button{visibility:hidden;opacity:0}
+.video-control-bar{position:absolute;right:12px;bottom:12px;left:12px;display:flex;align-items:center;gap:12px;padding:9px 12px;border:1px solid rgba(255,255,255,.25);border-radius:10px;background:rgba(20,29,37,.82);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .2s,visibility .2s}
+.image-stage-shell:hover .video-player.is-playing .video-control-bar,.video-player.is-playing:focus-within .video-control-bar{opacity:1;visibility:visible;pointer-events:auto}
+.video-pause-button{display:grid;place-items:center;width:30px;height:30px;padding:0;border:0;background:transparent;color:#fff;cursor:pointer}
+.video-pause-button svg{width:18px;height:18px;fill:currentColor}
+.video-timeline{flex:1;min-width:0;accent-color:#58b7eb;cursor:pointer}
+.video-error{position:absolute;right:12px;bottom:64px;left:12px;padding:6px 10px;border-radius:6px;background:rgba(120,25,25,.9);color:#fff;text-align:center;font-size:12px}
+.image-meta{display:flex;justify-content:space-between;align-items:baseline;gap:16px;padding:var(--pad)}
+.image-meta h1{font-size:clamp(20px,3vw,32px);line-height:1.2;font-weight:600}
+.image-meta h2{color:var(--mute);font-size:13px;font-weight:500}
+.carousel-toolbar{display:grid;grid-template-columns:40px minmax(0,1fr) 40px;align-items:center;gap:clamp(8px,2vw,20px);width:min(100%,108.8svh);height:110px;margin:0 auto;padding-top:14px}
+.carousel-toolbar[hidden]{display:none}
+.carousel-control[hidden]{display:none}
+.carousel-control{display:grid;place-items:center;width:40px;height:40px;padding:0;border:1px solid #c8cfd6;border-radius:50%;background:linear-gradient(180deg,#fbfcfd 0%,#e9edf0 48%,#cbd2d8 52%,#eef1f3 100%);box-shadow:0 2px 5px rgba(37,47,57,.1),inset 0 1px #fff;color:#4b5660;text-shadow:0 1px #fff;cursor:pointer;transition:background .15s,color .15s,border-color .15s}
+.carousel-control:hover{border-color:#397eaa;background:linear-gradient(180deg,#b8e4fa 0%,#6dbce6 48%,#238bca 52%,#83c8eb 100%);color:#fff;text-shadow:0 -1px rgba(20,59,86,.3)}
+.carousel-control .back-icon{width:15px;height:15px}
+.carousel-next .back-icon{transform:rotate(180deg)}
+.thumbnail-section{position:relative;min-width:0;height:96px}
+.thumbnail-section::before,.thumbnail-section::after{content:"";position:absolute;top:0;bottom:0;z-index:3;width:20px;pointer-events:none}
+.thumbnail-section::before{left:0;background:linear-gradient(90deg,#dce1e6,rgba(220,225,230,0))}
+.thumbnail-section::after{right:0;background:linear-gradient(270deg,#dce1e6,rgba(220,225,230,0))}
+.thumbnail-list{display:flex;align-items:center;justify-content:flex-start;gap:clamp(6px,1vw,12px);width:100%;height:100%;overflow-x:auto;overflow-y:hidden;padding:6px max(0px,calc(50% - 56px));scrollbar-width:none}
+.thumbnail-list{scrollbar-width:none}
+.thumbnail-list::-webkit-scrollbar{display:none}
+.thumbnail-list:empty{display:none}
+.thumbnail{position:relative;isolation:isolate;flex:0 0 112px;width:112px;height:84px;min-height:84px;aspect-ratio:4/3;padding:7px;transform:scale(var(--thumbnail-scale,1));transform-origin:center;border:3px solid rgba(150,162,174,.48);border-radius:18px;background:#dce1e6;box-shadow:0 2px 5px rgba(37,47,58,.09),inset 0 1px rgba(255,255,255,.9);cursor:pointer;transition:border-color .15s,box-shadow .2s,transform .75s cubic-bezier(.2,.7,.2,1)}
+.thumbnail::before{content:"";position:absolute;inset:0;z-index:0;border-radius:12px;background:linear-gradient(180deg,#e2f4fd,#badcf0);opacity:0;pointer-events:none;transition:opacity .3s ease}
+.thumbnail:hover,.thumbnail:focus-visible{z-index:2;transform:scale(1.04);border-color:#c1deed;background:#dce1e6;box-shadow:0 4px 10px rgba(35,76,103,.17),inset 0 1px #fff;color:#263b4a;text-shadow:0 1px rgba(255,255,255,.6)}
+.thumbnail:hover::before,.thumbnail:focus-visible::before{opacity:1}
+.thumbnail[aria-pressed="true"]{z-index:2;transform:scale(1.06);border-color:#1682cb;box-shadow:0 0 0 2px rgba(22,130,203,.2),0 2px 5px rgba(37,47,58,.09),inset 0 1px rgba(255,255,255,.9)}
+.thumbnail[aria-pressed="true"]:hover,.thumbnail[aria-pressed="true"]:focus-visible{transform:scale(1.06);box-shadow:0 0 0 2px rgba(22,130,203,.2),0 4px 10px rgba(35,76,103,.17),inset 0 1px #fff}
+.thumbnail-preview{position:relative;z-index:1;display:block;width:100%;height:100%;overflow:hidden;border:1px solid #a6afb8;border-radius:8px;background:linear-gradient(135deg,transparent 49.7%,rgba(112,124,136,.24) 50%,transparent 50.3%),linear-gradient(45deg,transparent 49.7%,rgba(112,124,136,.24) 50%,transparent 50.3%),linear-gradient(180deg,#f3f5f6 0%,#d9dee3 52%,#c3cad1 100%);box-shadow:0 2px 5px rgba(37,47,58,.08),inset 0 1px 3px rgba(43,53,64,.1)}
+.thumbnail-preview img{display:block;width:100%;height:100%;object-fit:contain;object-position:center}
+.thumbnail-preview[data-view="1"]{background-image:linear-gradient(135deg,transparent 49.7%,rgba(92,135,166,.26) 50%,transparent 50.3%),linear-gradient(45deg,transparent 49.7%,rgba(92,135,166,.26) 50%,transparent 50.3%),linear-gradient(180deg,#f2f7fa 0%,#d0e0e9 52%,#b7cbd7 100%)}
+.thumbnail-preview[data-view="2"]{background-image:linear-gradient(135deg,transparent 49.7%,rgba(124,116,100,.22) 50%,transparent 50.3%),linear-gradient(45deg,transparent 49.7%,rgba(124,116,100,.22) 50%,transparent 50.3%),linear-gradient(180deg,#f4f2ee 0%,#dedbd4 52%,#c8c3b9 100%)}
+.caption{display:grid;grid-template-columns:1fr 2fr;gap:var(--pad);padding:var(--pad) 0}
+.caption h1{font-size:clamp(20px,3vw,32px);line-height:1.2;font-weight:500}
+.caption p{max-width:58ch;color:var(--mute)}
+footer{display:flex;justify-content:space-between;gap:16px;padding:var(--pad) 0 calc(var(--pad)*1.5);color:var(--mute);font-size:12px}
+@media(max-width:820px){.cols-3{grid-template-columns:repeat(2,1fr)}.span-2{grid-column:span 2}.caption{grid-template-columns:1fr}}
+@media(max-width:540px){.cols-3{grid-template-columns:1fr}.span-2{grid-column:auto}nav{gap:16px}.image-stage{aspect-ratio:4/3}}
+@media(prefers-reduced-motion:reduce){.image-stage,.image-overlay,.thumbnail,.thumbnail::before{transition:none}.thumbnail:hover,.thumbnail:focus-visible{transform:none}}
+#page-transition-shell{position:fixed;z-index:9998;margin:0;overflow:hidden;border:7px solid rgba(150,162,174,.48);border-radius:22px;background:#dce1e6;box-shadow:0 2px 5px rgba(37,47,58,.09),inset 0 1px rgba(255,255,255,.9);pointer-events:none;transform-origin:top left;will-change:transform}
+#page-transition-image{position:fixed;z-index:9999;margin:0;pointer-events:none;transform-origin:top left;will-change:transform}
+.is-featured-entry #page-back-button{opacity:0}
+.page-transition-active .image-detail-section>.cell.showcase{opacity:0}
+.page-transition-active .image-detail-section>.cell.image-meta{animation:detail-meta-swipe-up .36s ease-out both}
+.page-transition-active .image-overlay p{animation:detail-description-swipe-up .36s ease-out both}
+.page-transition-active .carousel-toolbar{visibility:hidden}
+.page-transition-active .carousel-toolbar.is-entering{visibility:visible}
+.page-transition-active .page .image-stage-shell{position:relative;z-index:1}
+.page-transition-active .page .carousel-toolbar{position:relative;z-index:0}
+@keyframes detail-meta-swipe-up{from{opacity:0;transform:translateY(100vh);filter:blur(4px)}to{opacity:1;transform:translateY(0);filter:blur(0)}}
+@keyframes detail-description-swipe-up{from{opacity:0;transform:translateY(100vh);filter:blur(4px)}to{opacity:1;transform:translateY(0);filter:blur(0)}}
+@media(prefers-reduced-motion:reduce){.page-transition-active .cell.showcase,.page-transition-active .cell.image-meta,.page-transition-active .image-overlay p{animation:none}}
+body.is-returning .back-row{animation:detail-page-fade .2s ease-out both}
+body.is-returning .page .image-meta{animation:detail-meta-swipe-down .36s ease-in both}
+body.is-returning .page .image-overlay p{animation:detail-description-swipe-down .36s ease-in both}
+body.is-returning .page .image-stage-shell{position:relative;z-index:1}
+body.is-returning .page .carousel-toolbar{position:relative;z-index:0}
+@keyframes detail-page-fade{to{opacity:0}}
+@keyframes detail-meta-swipe-down{to{opacity:0;transform:translateY(100vh);filter:blur(4px)}}
+@keyframes detail-description-swipe-down{to{opacity:0;transform:translateY(100vh);filter:blur(4px)}}
+</style>
+<link rel="stylesheet" href="site-theme.css">
+</head>
+<body>
+<div class="page">
+  <header class="grid cols-3">
+    <div class="cell"><a href="portfolio.html"><strong>Evan Biggers</strong></a></div>
+    <div class="cell span-2"><nav aria-label="Primary"><a href="portfolio.html#contact" data-contact-open aria-haspopup="dialog">Contact</a></nav></div>
+  </header>
+  <div class="back-row"><a class="back-button" id="page-back-button" href="portfolio.html" aria-label="Back to home" title="Back to home"><svg class="back-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 12c0-.55.3-1.05.8-1.34l12.6-7.5c2.18-1.3 4.77.52 4.36 3.03l-1.95 11.63c-.42 2.5-3.45 3.44-5.22 1.65L3.53 13.35A1.9 1.9 0 0 1 3 12Z"/></svg></a></div>
+  <main>
+    <section class="section image-detail-section" aria-label="Image showcase">
+      <div class="cell showcase">
+        <div class="image-stage-shell" tabindex="0" role="group" aria-label="Image preview">
+          <div class="image-stage" id="image-stage" role="group"><span aria-hidden="true">large image</span></div>
+          <div class="image-overlay" aria-live="polite">
+            <p id="image-description">Image description</p>
+            <span class="image-index" id="image-index"></span>
+          </div>
+        </div>
+        <div class="carousel-toolbar" id="carousel-toolbar" hidden>
+          <button class="carousel-control carousel-previous" id="carousel-previous" type="button" aria-label="Previous image" hidden><svg class="back-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 12c0-.55.3-1.05.8-1.34l12.6-7.5c2.18-1.3 4.77.52 4.36 3.03l-1.95 11.63c-.42 2.5-3.45 3.44-5.22 1.65L3.53 13.35A1.9 1.9 0 0 1 3 12Z"/></svg></button>
+          <div class="thumbnail-section" role="group" aria-label="Carousel image previews"><div class="thumbnail-list" id="thumbnail-list"></div></div>
+          <button class="carousel-control carousel-next" id="carousel-next" type="button" aria-label="Next image" hidden><svg class="back-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 12c0-.55.3-1.05.8-1.34l12.6-7.5c2.18-1.3 4.77.52 4.36 3.03l-1.95 11.63c-.42 2.5-3.45 3.44-5.22 1.65L3.53 13.35A1.9 1.9 0 0 1 3 12Z"/></svg></button>
+        </div>
+      </div>
+      <div class="cell image-meta">
+        <h1 id="image-title">Image title</h1>
+        <h2 id="image-subtitle"></h2>
+      </div>
+    </section>
+  </main>
+</div>
+<script>
+const collections = {
+  featured: {
+    name: "Selected work",
+    back: "portfolio.html",
+    projects: {
+      brand: {
+      title: "KCSC Radio",
+      description: "Brand identity and advertising graphics for KCSC Radio.",
+        slides: [
+        { image: "KCSC Artboards/kcsc_wantsyou.png", subtitle: "Wants You", description: "KCSC Radio advertising graphic." },
+        { image: "KCSC Artboards/kcsc_makers.png", subtitle: "Makers", description: "KCSC Radio advertising graphic." },
+        { image: "KCSC Artboards/kcsc_youthquake.png", video: "Youthquake_ KCSC Session_720p.mp4", subtitle: "Youthquake", description: "KCSC Radio advertising graphic." },
+        { image: "KCSC Artboards/kcsc_holiday.png", subtitle: "Holiday", description: "KCSC Radio advertising graphic." },
+        { image: "KCSC Artboards/kcsc_chicochella.png", subtitle: "Chicochella", description: "KCSC Radio advertising graphic." },
+        { image: "KCSC Artboards/kcsc_bargainbin.png", subtitle: "Bargain Bin", description: "KCSC Radio advertising graphic." }
+        ]
+      },
+      mobile: {
+        title: "Vyzee",
+        description: "Vyzee is a sparkling water brand identity and packaging project, designed to feel fresh, distinctive, and shelf-ready. The visual system carries across the can, retail boxes, and shipping materials.",
+        slides: [
+          { image: "Vyzee Artboards/vyz_allcans.png", subtitle: "Can lineup", description: "The full sparkling water range brings the identity together." },
+          { image: "Vyzee Artboards/vyz_boxmock2.png", subtitle: "Box mockup", description: "A rendered box mockup presents the Vyzee packaging in context." },
+          { image: "Vyzee Artboards/vyz_box2.png", subtitle: "Packaging detail", description: "A second box design applies the system to another package format." },
+          { image: "Vyzee Artboards/vyz_maincan.png", subtitle: "Main can", description: "The Vyzee sparkling water can anchors the project’s visual identity." },
+          { image: "Vyzee Artboards/vyz_boxmock1.png", subtitle: "Box mockup", description: "A rendered box mockup presents another view of the Vyzee packaging." },
+          { image: "Vyzee Artboards/vyz_box1.png", subtitle: "Retail box", description: "Retail packaging extends the brand across the product experience." },
+          { image: "Vyzee Artboards/vyz_shipper.png", subtitle: "Shipping box", description: "Branded shipping packaging completes the set of applications." }
+        ]
+      },
+      system: {
+        title: "Replug",
+        description: "Capstone Project",
+        slides: [
+          { image: "Replug Artboards/ReplugCover.png", subtitle: "Cover", description: "Replug capstone project." },
+          { image: "Replug Artboards/14rep.png", subtitle: "Artboard 14", description: "Replug capstone project." },
+          { image: "Replug Artboards/15rep.png", subtitle: "Artboard 15", description: "Replug capstone project." },
+          { image: "Replug Artboards/10rep.png", subtitle: "Artboard 10", description: "Replug capstone project." },
+          { image: "Replug Artboards/11rep.png", subtitle: "Artboard 11", description: "Replug capstone project." },
+          { image: "Replug Artboards/16rep.png", subtitle: "Artboard 16", description: "Replug capstone project." },
+          { image: "Replug Artboards/19rep.png", subtitle: "Artboard 19", description: "Replug capstone project." },
+          { image: "Replug Artboards/17rep.png", subtitle: "Artboard 17", description: "Replug capstone project." },
+          { image: "Replug Artboards/18rep.png", subtitle: "Artboard 18", description: "Replug capstone project." },
+          { image: "Replug Artboards/6rep.png", subtitle: "Artboard 6", description: "Replug capstone project." },
+          { image: "Replug Artboards/9rep.png", subtitle: "Artboard 9", description: "Replug capstone project." },
+          { image: "Replug Artboards/12rep.png", subtitle: "Artboard 12", description: "Replug capstone project." },
+          { image: "Replug Artboards/13rep.png", subtitle: "Artboard 13", description: "Replug capstone project." },
+          { image: "Replug Artboards/ReplugSMP.png", subtitle: "Replug SMP", description: "Replug capstone project." }
+        ]
+      }
+    }
+  },
+  website: { name: "Website collection", back: "portfolio.html", description: "Add a description for this website image." },
+  packaging: { name: "Packaging collection", back: "portfolio.html", description: "Add a description for this packaging image." },
+  editorial: { name: "Editorial collection", back: "portfolio.html", description: "Add a description for this editorial image." }
+};
+const params = new URLSearchParams(window.location.search);
+const collection = collections[params.get("collection")] || collections.featured;
+const imageId = params.get("image") || "brand";
+const project = collection.projects?.[imageId] || {
+  title: `${collection.name.replace(" collection", "")} image ${imageId}`,
+  description: collection.description || "Add a description for this selected project image.",
+  slides: [{ subtitle: "Image view", description: collection.description || "Add a description for this selected project image." }]
+};
+const slides = project.slides;
+const imageStage = document.getElementById("image-stage");
+const carouselToolbar = document.getElementById("carousel-toolbar");
+const thumbnailList = document.getElementById("thumbnail-list");
+const previousButton = document.getElementById("carousel-previous");
+const nextButton = document.getElementById("carousel-next");
+const stagePlaceholder = imageStage.querySelector("span");
+const stageImage = document.createElement("img");
+stageImage.className = "stage-image";
+stageImage.alt = "";
+imageStage.append(stageImage);
+const stageVideo = document.createElement("video");
+stageVideo.className = "stage-video";
+stageVideo.preload = "metadata";
+stageVideo.playsInline = true;
+stageVideo.hidden = true;
+imageStage.append(stageVideo);
+const videoPlayer = document.createElement("div");
+videoPlayer.className = "video-player";
+videoPlayer.hidden = true;
+videoPlayer.innerHTML = `
+  <button class="video-play-button" type="button" aria-label="Play video">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.8c0-1.1 1.2-1.8 2.2-1.2l11 6.7a2 2 0 0 1 0 3.4l-11 6.7A1.5 1.5 0 0 1 7 19.2Z"/></svg>
+  </button>
+  <div class="video-control-bar">
+    <button class="video-pause-button" type="button" aria-label="Pause video">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>
+    </button>
+    <input class="video-timeline" type="range" min="0" max="1" step="0.1" value="0" aria-label="Scrub video timeline">
+  </div>
+  <span class="video-error" role="status" hidden></span>`;
+imageStage.append(videoPlayer);
+const videoPlayButton = videoPlayer.querySelector(".video-play-button");
+const videoPauseButton = videoPlayer.querySelector(".video-pause-button");
+const videoTimeline = videoPlayer.querySelector(".video-timeline");
+const videoError = videoPlayer.querySelector(".video-error");
+const updateVideoTimeline = () => {
+  if (Number.isFinite(stageVideo.duration)) videoTimeline.max = String(stageVideo.duration);
+  videoTimeline.value = String(Number.isFinite(stageVideo.currentTime) ? stageVideo.currentTime : 0);
+};
+const playVideo = () => {
+  videoError.hidden = true;
+  stageVideo.play().then(() => videoPauseButton.focus()).catch(error => {
+    if (error.name !== "AbortError") {
+      console.error(error);
+      videoError.textContent = "Unable to play this video.";
+      videoError.hidden = false;
+    }
+  });
+};
+videoPlayButton.addEventListener("click", () => {
+  if (stageVideo.paused) playVideo();
+  else stageVideo.pause();
+});
+videoPauseButton.addEventListener("click", () => {
+  stageVideo.pause();
+  videoPlayButton.focus();
+});
+videoTimeline.addEventListener("input", () => {
+  if (Number.isFinite(stageVideo.duration)) stageVideo.currentTime = Number(videoTimeline.value);
+});
+stageVideo.addEventListener("loadedmetadata", updateVideoTimeline);
+stageVideo.addEventListener("timeupdate", updateVideoTimeline);
+stageVideo.addEventListener("play", () => videoPlayer.classList.add("is-playing"));
+stageVideo.addEventListener("pause", () => videoPlayer.classList.remove("is-playing"));
+stageVideo.addEventListener("error", () => {
+  videoError.textContent = "Unable to load this video.";
+  videoError.hidden = false;
+});
+let currentSlide = 0;
+const reducedMotionPreference = window.matchMedia("(prefers-reduced-motion: reduce)");
+const thumbnailCycleCount = slides.length > 1 ? 5 : 1;
+const centerThumbnailCycle = Math.floor(thumbnailCycleCount / 2);
+let activeSequenceIndex = centerThumbnailCycle * slides.length + currentSlide;
+let thumbnailScrollFrame = 0;
+const centerThumbnail = (sequenceIndex, behavior = "smooth", onComplete = () => {}) => {
+  const thumbnail = thumbnailList.querySelectorAll(".thumbnail")[sequenceIndex];
+  if (!thumbnail) return;
+  const listBounds = thumbnailList.getBoundingClientRect();
+  const thumbnailBounds = thumbnail.getBoundingClientRect();
+  const targetLeft = thumbnailList.scrollLeft + thumbnailBounds.left - listBounds.left +
+    thumbnailBounds.width / 2 - thumbnailList.clientWidth / 2;
+  const endLeft = Math.min(Math.max(targetLeft, 0), thumbnailList.scrollWidth - thumbnailList.clientWidth);
+  if (thumbnailScrollFrame) window.cancelAnimationFrame(thumbnailScrollFrame);
+  const startLeft = thumbnailList.scrollLeft;
+  if (reducedMotionPreference.matches || behavior === "auto" || startLeft === endLeft) {
+    thumbnailList.scrollLeft = endLeft;
+    thumbnailScrollFrame = 0;
+    onComplete();
+    return;
+  }
+  const startedAt = performance.now();
+  const animateScroll = now => {
+    const progress = Math.min((now - startedAt) / 380, 1);
+    const easedProgress = 1 - (1 - progress) ** 3;
+    thumbnailList.scrollLeft = startLeft + (endLeft - startLeft) * easedProgress;
+    if (progress < 1) thumbnailScrollFrame = window.requestAnimationFrame(animateScroll);
+    else {
+      thumbnailScrollFrame = 0;
+      onComplete();
+    }
+  };
+  thumbnailScrollFrame = window.requestAnimationFrame(animateScroll);
+};
+const keepThumbnailCycleContinuous = () => {
+  if (thumbnailScrollFrame || slides.length < 2) return;
+  const thumbnails = thumbnailList.querySelectorAll(".thumbnail");
+  const cycleWidth = thumbnails[slides.length]?.offsetLeft - thumbnails[0]?.offsetLeft;
+  const maxScroll = thumbnailList.scrollWidth - thumbnailList.clientWidth;
+  if (!cycleWidth || maxScroll <= 0) return;
+  const shift = cycleWidth * 2;
+  if (thumbnailList.scrollLeft < cycleWidth && thumbnailList.scrollLeft + shift <= maxScroll) {
+    thumbnailList.scrollLeft += shift;
+  } else if (thumbnailList.scrollLeft > maxScroll - cycleWidth && thumbnailList.scrollLeft - shift >= 0) {
+    thumbnailList.scrollLeft -= shift;
+  }
+};
+thumbnailList.addEventListener("scroll", keepThumbnailCycleContinuous);
+const waitForImageLoad = image => {
+  if (!image?.hasAttribute("src")) return Promise.resolve();
+  if (image.complete) {
+    return image.naturalWidth > 0
+      ? Promise.resolve()
+      : Promise.reject(new Error(`Could not load image: ${image.src}`));
+  }
+  return new Promise((resolve, reject) => {
+    image.addEventListener("load", resolve, { once: true });
+    image.addEventListener("error", () => reject(new Error(`Could not load image: ${image.src}`)), { once: true });
+  });
+};
+
+document.title = `${project.title} | Your Name`;
+document.getElementById("page-back-button").href = collection.back;
+document.getElementById("image-subtitle").textContent = project.description;
+
+function renderSlide(index, requestedSequenceIndex) {
+  const nextSlideIndex = (index + slides.length) % slides.length;
+  const direction = Math.sign(index - currentSlide);
+  const nextSequenceIndex = Number.isInteger(requestedSequenceIndex)
+    ? requestedSequenceIndex
+    : activeSequenceIndex + direction;
+  if (slides[currentSlide]?.video && currentSlide !== nextSlideIndex) {
+    stageVideo.pause();
+    stageVideo.currentTime = 0;
+  }
+  currentSlide = nextSlideIndex;
+  activeSequenceIndex = nextSequenceIndex;
+  const slide = slides[currentSlide];
+  imageStage.classList.toggle("is-video", Boolean(slide.video));
+  stagePlaceholder.hidden = Boolean(slide.image);
+  stageImage.hidden = !slide.image || Boolean(slide.video);
+  if (slide.image) stageImage.src = slide.image;
+  else stageImage.removeAttribute("src");
+  if (slide.video) {
+    stageVideo.poster = slide.image || "";
+    if (stageVideo.getAttribute("src") !== slide.video) {
+      stageVideo.src = slide.video;
+      stageVideo.load();
+    }
+    stageVideo.hidden = false;
+    videoPlayer.hidden = false;
+    videoError.hidden = true;
+    videoTimeline.value = "0";
+  } else {
+    stageVideo.pause();
+    stageVideo.removeAttribute("src");
+    stageVideo.removeAttribute("poster");
+    stageVideo.load();
+    stageVideo.hidden = true;
+    videoPlayer.hidden = true;
+    videoPlayer.classList.remove("is-playing");
+  }
+  imageStage.dataset.view = String(currentSlide % 3);
+  imageStage.setAttribute("aria-label", `${project.title}: ${slide.subtitle}`);
+  document.getElementById("image-index").textContent = `${String(currentSlide + 1).padStart(2, "0")} / ${String(slides.length).padStart(2, "0")}`;
+  document.getElementById("image-title").textContent = project.title;
+  document.getElementById("image-description").textContent = slide.description;
+  thumbnailList.querySelectorAll(".thumbnail").forEach((thumbnail, sequenceIndex) => {
+    const thumbnailIndex = Number(thumbnail.dataset.slideIndex);
+    thumbnail.setAttribute("aria-pressed", String(sequenceIndex === nextSequenceIndex));
+    const distance = Math.min(
+      Math.abs(thumbnailIndex - currentSlide),
+      slides.length - Math.abs(thumbnailIndex - currentSlide)
+    );
+    thumbnail.style.setProperty("--thumbnail-scale", String(Math.max(.82, 1 - distance * .025)));
+  });
+  const needsRebase = Number(thumbnailList.children[nextSequenceIndex]?.dataset.cycleIndex) !== centerThumbnailCycle;
+  centerThumbnail(nextSequenceIndex, "smooth", () => {
+    if (!needsRebase) return;
+    activeSequenceIndex = centerThumbnailCycle * slides.length + nextSlideIndex;
+    thumbnailList.querySelectorAll(".thumbnail").forEach((thumbnail, sequenceIndex) => {
+      thumbnail.setAttribute("aria-pressed", String(sequenceIndex === activeSequenceIndex));
+    });
+    centerThumbnail(activeSequenceIndex, "auto");
+  });
+}
+
+if (slides.length > 1) {
+  carouselToolbar.hidden = false;
+  previousButton.hidden = false;
+  nextButton.hidden = false;
+  const thumbnailEntries = Array.from({ length: thumbnailCycleCount }, (_, cycleIndex) =>
+    slides.map((_, index) => ({
+      index,
+      cycleIndex,
+      sequenceIndex: cycleIndex * slides.length + index
+    }))
+  ).flat();
+  thumbnailEntries.forEach(({ index, cycleIndex, sequenceIndex }) => {
+    const slide = slides[index];
+    const thumbnail = document.createElement("button");
+    thumbnail.className = "thumbnail";
+    thumbnail.type = "button";
+    thumbnail.dataset.slideIndex = String(index);
+    thumbnail.dataset.cycleIndex = String(cycleIndex);
+    thumbnail.dataset.sequenceIndex = String(sequenceIndex);
+    thumbnail.setAttribute("aria-label", `Show ${slide.subtitle}`);
+    thumbnail.setAttribute("aria-pressed", String(cycleIndex === centerThumbnailCycle && index === currentSlide));
+    const distance = Math.min(index, slides.length - index);
+    thumbnail.style.setProperty("--thumbnail-scale", String(Math.max(.82, 1 - distance * .025)));
+    const preview = document.createElement("span");
+    preview.className = "thumbnail-preview";
+    preview.dataset.view = String(index % 3);
+    preview.setAttribute("aria-hidden", "true");
+    if (slide.image) {
+      const previewImage = document.createElement("img");
+      previewImage.src = slide.image;
+      preview.append(previewImage);
+    }
+    thumbnail.append(preview);
+    thumbnail.addEventListener("click", () => renderSlide(
+      Number(thumbnail.dataset.slideIndex),
+      Number(thumbnail.dataset.sequenceIndex)
+    ));
+    thumbnailList.append(thumbnail);
+  });
+  centerThumbnail(activeSequenceIndex, "auto");
+  previousButton.addEventListener("click", () => renderSlide(currentSlide - 1));
+  nextButton.addEventListener("click", () => renderSlide(currentSlide + 1));
+  document.addEventListener("keydown", event => {
+    if (event.key === "ArrowLeft") renderSlide(currentSlide - 1);
+    if (event.key === "ArrowRight") renderSlide(currentSlide + 1);
+  });
+}
+
+renderSlide(0);
+const pageBackButton = document.getElementById("page-back-button");
+pageBackButton.href = collection.back;
+
+const storedOrigin = sessionStorage.getItem("featured-work-origin");
+const origin = storedOrigin ? JSON.parse(storedOrigin) : null;
+const captureTransitionShape = element => {
+  const style = window.getComputedStyle(element);
+  const radius = property => {
+    const values = style.getPropertyValue(property).split(/\s+/).map(value => parseFloat(value) || 0);
+    return [values[0], values[1] ?? values[0]];
+  };
+  return {
+    borderWidths: ["Top", "Right", "Bottom", "Left"]
+      .map(side => parseFloat(style.getPropertyValue(`border-${side.toLowerCase()}-width`)) || 0),
+    radii: [
+      radius("border-top-left-radius"),
+      radius("border-top-right-radius"),
+      radius("border-bottom-right-radius"),
+      radius("border-bottom-left-radius")
+    ]
+  };
+};
+if (
+  collection === collections.featured &&
+  origin?.image === imageId &&
+  [origin.thumbnail?.x, origin.thumbnail?.y, origin.thumbnail?.width, origin.thumbnail?.height, origin.cell?.x, origin.cell?.y, origin.cell?.width, origin.cell?.height].every(Number.isFinite) &&
+  origin.thumbnail.width > 0 &&
+  origin.thumbnail.height > 0 &&
+  origin.cell.width > 0 &&
+  origin.cell.height > 0
+) {
+  pageBackButton.addEventListener("click", event => {
+    if (
+      event.button !== 0 ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey ||
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) return;
+
+    event.preventDefault();
+    const destination = new URL("portfolio.html", window.location.href);
+    destination.searchParams.set("return", "featured");
+    destination.searchParams.set("image", imageId);
+    const showcase = document.querySelector(".cell.showcase");
+    const copyComputedStyles = (element, excludeSelector) => {
+      const clone = element.cloneNode(true);
+      if (excludeSelector) clone.querySelectorAll(excludeSelector).forEach(node => node.remove());
+      const sourceNodes = [element, ...element.querySelectorAll("*")]
+        .filter(source => !excludeSelector || !source.closest(excludeSelector));
+      const cloneNodes = [clone, ...clone.querySelectorAll("*")];
+      sourceNodes.forEach((source, index) => {
+        const target = cloneNodes[index];
+        const computedStyle = window.getComputedStyle(source);
+        for (const property of computedStyle) {
+          target.style.setProperty(property, computedStyle.getPropertyValue(property));
+        }
+        target.style.setProperty("transition", "none", "important");
+        target.style.setProperty("animation", "none", "important");
+        target.removeAttribute("id");
+      });
+      clone.setAttribute("aria-hidden", "true");
+      return clone;
+    };
+    const showcaseBounds = showcase.getBoundingClientRect();
+    const imageBounds = imageStage.getBoundingClientRect();
+    const shell = copyComputedStyles(showcase, ".image-stage-shell, .carousel-toolbar");
+    shell.style.overflow = "hidden";
+    const image = copyComputedStyles(imageStage);
+    const returnImage = image.querySelector(".stage-image");
+    origin.returnTransition = {
+      showcase: { x: showcaseBounds.left, y: showcaseBounds.top, width: showcaseBounds.width, height: showcaseBounds.height },
+      imageBounds: { x: imageBounds.left, y: imageBounds.top, width: imageBounds.width, height: imageBounds.height },
+      shell: shell.outerHTML,
+      image: image.outerHTML,
+      imageSize: returnImage ? { width: returnImage.naturalWidth, height: returnImage.naturalHeight } : null,
+      shellStyle: captureTransitionShape(showcase),
+      imageStyle: captureTransitionShape(imageStage)
+    };
+    sessionStorage.setItem("featured-work-origin", JSON.stringify(origin));
+
+      const toolbarAnimation = !carouselToolbar.hidden
+        ? carouselToolbar.animate([
+          { transform: "translateY(0)", opacity: 1 },
+          { transform: "translateY(-100%)", opacity: 0 }
+        ], { duration: 220, easing: "cubic-bezier(.7,0,.84,0)", fill: "forwards" })
+        : null;
+      document.body.classList.add("is-returning");
+      const descriptionAnimations = [
+        ...document.querySelector(".image-meta").getAnimations(),
+        ...document.querySelector(".image-overlay p").getAnimations()
+      ];
+      Promise.all([toolbarAnimation?.finished, ...descriptionAnimations.map(animation => animation.finished)].filter(Boolean))
+        .then(() => window.location.assign(destination.href));
+    });
+}
+
+const animateBounds = (element, from, to, duration, easing, fromShape, toShape, imageFit) => {
+  const fromX = from.x ?? from.left;
+  const fromY = from.y ?? from.top;
+  const toX = to.x ?? to.left;
+  const toY = to.y ?? to.top;
+  const sourceShape = fromShape || captureTransitionShape(element);
+  const targetShape = toShape || sourceShape;
+  const bezier = easing.match(/cubic-bezier\(([^)]+)\)/)?.[1].split(",").map(Number);
+  const easingProgress = progress => {
+    if (!bezier || bezier.length !== 4) return progress;
+    const [x1, y1, x2, y2] = bezier;
+    const coordinate = (t, first, second) =>
+      3 * (1 - t) ** 2 * t * first + 3 * (1 - t) * t ** 2 * second + t ** 3;
+    let low = 0;
+    let high = 1;
+    for (let iteration = 0; iteration < 16; iteration++) {
+      const middle = (low + high) / 2;
+      if (coordinate(middle, x1, x2) < progress) low = middle;
+      else high = middle;
+    }
+    return coordinate((low + high) / 2, y1, y2);
+  };
+  const interpolate = (start, end, progress) => start + (end - start) * progress;
+  element.style.transformOrigin = "top left";
+  element.style.willChange = "transform";
+  const keyframes = Array.from({ length: 33 }, (_, index) => {
+    const offset = index / 32;
+    const progress = index === 0 ? 0 : index === 32 ? 1 : easingProgress(offset);
+    const scaleX = interpolate(1, to.width / from.width, progress);
+    const scaleY = interpolate(1, to.height / from.height, progress);
+    const frame = {
+      offset,
+      transform: `translate(${(toX - fromX) * progress}px, ${(toY - fromY) * progress}px) scale(${scaleX}, ${scaleY})`
+    };
+    ["Top", "Right", "Bottom", "Left"].forEach((side, sideIndex) => {
+      const scale = side === "Left" || side === "Right" ? scaleX : scaleY;
+      const width = interpolate(sourceShape.borderWidths[sideIndex], targetShape.borderWidths[sideIndex], progress) / scale;
+      frame[`border${side}Width`] = `${width}px`;
+    });
+    ["TopLeft", "TopRight", "BottomRight", "BottomLeft"].forEach((corner, cornerIndex) => {
+      const [sourceX, sourceY] = sourceShape.radii[cornerIndex];
+      const [targetX, targetY] = targetShape.radii[cornerIndex];
+      frame[`border${corner}Radius`] =
+        `${interpolate(sourceX, targetX, progress) / scaleX}px ${interpolate(sourceY, targetY, progress) / scaleY}px`;
+    });
+    return frame;
+  });
+  const image = imageFit && element.querySelector(".stage-image");
+  const imageWidth = image?.naturalWidth || imageFit?.width;
+  const imageHeight = image?.naturalHeight || imageFit?.height;
+  let imageAnimation;
+  if (imageWidth && imageHeight) {
+    const fitScale = (width, height, fit) => fit === "cover"
+      ? Math.max(width / imageWidth, height / imageHeight)
+      : Math.min(width / imageWidth, height / imageHeight);
+    Object.assign(image.style, {
+      inset: "auto",
+      left: "50%",
+      top: "50%",
+      right: "auto",
+      bottom: "auto",
+      objectFit: "fill",
+      transform: "translate(-50%, -50%)"
+    });
+    const imageKeyframes = keyframes.map(({ offset }, index) => {
+      const progress = index === 0 ? 0 : index === 32 ? 1 : easingProgress(offset);
+      const scaleX = interpolate(1, to.width / from.width, progress);
+      const scaleY = interpolate(1, to.height / from.height, progress);
+      const currentWidth = from.width * scaleX;
+      const currentHeight = from.height * scaleY;
+      const scale = interpolate(
+        fitScale(currentWidth, currentHeight, imageFit.from),
+        fitScale(currentWidth, currentHeight, imageFit.to),
+        progress
+      );
+      const width = imageWidth * scale / scaleX;
+      const height = imageHeight * scale / scaleY;
+      return {
+        offset,
+        left: `${from.width / 2}px`,
+        top: `${from.height / 2}px`,
+        width: `${width}px`,
+        height: `${height}px`
+      };
+    });
+    imageAnimation = image.animate(imageKeyframes, { duration, easing: "linear", fill: "forwards" });
+  }
+  const animation = element.animate(keyframes, { duration, easing: "linear", fill: "forwards" });
+  animation.imageAnimation = imageAnimation;
+  return animation;
+};
+
+const sourceBounds = ["fromX", "fromY", "fromWidth", "fromHeight"].map(key => Number(params.get(key)));
+const sourceCellBounds = ["fromCellX", "fromCellY", "fromCellWidth", "fromCellHeight"].map(key => Number(params.get(key)));
+const hasFeaturedTransition = (
+  collection === collections.featured &&
+  ["brand", "mobile", "system"].includes(imageId) &&
+  sourceBounds.every(Number.isFinite) &&
+  sourceBounds[2] > 0 &&
+  sourceBounds[3] > 0 &&
+  sourceCellBounds.every(Number.isFinite) &&
+  sourceCellBounds[2] > 0 &&
+  sourceCellBounds[3] > 0
+);
+if (hasFeaturedTransition) {
+  const cleanUrl = new URL(window.location.href);
+  ["fromX", "fromY", "fromWidth", "fromHeight", "fromCellX", "fromCellY", "fromCellWidth", "fromCellHeight"].forEach(key => cleanUrl.searchParams.delete(key));
+  window.history.replaceState(null, "", cleanUrl);
+
+  if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    const [fromX, fromY, fromWidth, fromHeight] = sourceBounds;
+    const [fromCellX, fromCellY, fromCellWidth, fromCellHeight] = sourceCellBounds;
+    const showcase = document.querySelector(".cell.showcase");
+    const showcaseBounds = showcase.getBoundingClientRect();
+    const imageBounds = imageStage.getBoundingClientRect();
+    const transitionShell = document.createElement("div");
+    transitionShell.id = "page-transition-shell";
+    transitionShell.setAttribute("aria-hidden", "true");
+    transitionShell.style.left = `${fromCellX}px`;
+    transitionShell.style.top = `${fromCellY}px`;
+    transitionShell.style.width = `${fromCellWidth}px`;
+    transitionShell.style.height = `${fromCellHeight}px`;
+    const transitionImage = imageStage.cloneNode(true);
+    transitionImage.removeAttribute("id");
+    transitionImage.setAttribute("aria-hidden", "true");
+    transitionImage.id = "page-transition-image";
+    transitionImage.style.left = `${fromX}px`;
+    transitionImage.style.top = `${fromY}px`;
+    transitionImage.style.width = `${fromWidth}px`;
+    transitionImage.style.height = `${fromHeight}px`;
+    transitionImage.style.aspectRatio = "auto";
+    const transitionStageImage = transitionImage.querySelector(".stage-image");
+    document.body.classList.add("page-transition-active");
+    document.body.append(transitionShell, transitionImage);
+    const shellAnimation = animateBounds(transitionShell,
+      { x: fromCellX, y: fromCellY, width: fromCellWidth, height: fromCellHeight },
+      { x: showcaseBounds.left, y: showcaseBounds.top, width: showcaseBounds.width, height: showcaseBounds.height },
+      650,
+      "cubic-bezier(.2,.75,.2,1)",
+      origin.cellStyle,
+      captureTransitionShape(showcase)
+    );
+    const animation = animateBounds(transitionImage,
+      { x: fromX, y: fromY, width: fromWidth, height: fromHeight },
+      { x: imageBounds.left, y: imageBounds.top, width: imageBounds.width, height: imageBounds.height },
+      650,
+      "cubic-bezier(.2,.75,.2,1)",
+      origin.thumbnailStyle,
+      captureTransitionShape(imageStage),
+      { from: "cover", to: "contain", width: origin.imageSize?.width, height: origin.imageSize?.height }
+    );
+    const pageEntranceAnimations = [
+      ...document.querySelector(".image-detail-section>.cell.showcase").getAnimations(),
+      ...document.querySelector(".image-detail-section>.cell.image-meta").getAnimations()
+    ];
+    const imageLoads = [stageImage, transitionStageImage].map(waitForImageLoad);
+    Promise.all([
+      shellAnimation.finished,
+      animation.finished,
+      animation.imageAnimation?.finished,
+      ...imageLoads,
+      ...pageEntranceAnimations.map(entrance => entrance.finished)
+    ]).then(() => {
+      const showcaseReveal = showcase.animate(
+        [{ opacity: 0 }, { opacity: 1 }],
+        { duration: 180, easing: "ease-out", fill: "both" }
+      );
+      const overlayFades = [transitionShell, transitionImage].map(overlay =>
+        overlay.animate(
+          [{ opacity: 1 }, { opacity: 0 }],
+          { duration: 180, easing: "ease-out", fill: "forwards" }
+        )
+      );
+      const carouselItems = carouselToolbar.hidden
+        ? []
+        : Array.from(carouselToolbar.children).filter(item => !item.hidden);
+      if (carouselItems.length) {
+        carouselToolbar.classList.add("is-entering");
+        const carouselAnimations = carouselItems.map(item => item.animate([
+          { transform: "translateY(-100%)", opacity: 0 },
+          { transform: "translateY(0)", opacity: 1 }
+        ], { duration: 420, easing: "ease-out", fill: "both" }));
+        return Promise.all([
+          showcaseReveal.finished,
+          ...overlayFades.map(fade => fade.finished),
+          ...carouselAnimations.map(carouselAnimation => carouselAnimation.finished)
+        ]);
+      }
+      return Promise.all([
+        showcaseReveal.finished,
+        ...overlayFades.map(fade => fade.finished)
+      ]);
+    }).then(() => {
+      transitionShell.remove();
+      transitionImage.remove();
+      carouselToolbar.classList.remove("is-entering");
+      document.body.classList.remove("page-transition-active");
+      return pageBackButton.animate(
+        [{ opacity: 0 }, { opacity: 1 }],
+        { duration: 220, easing: "ease-out", fill: "both" }
+      ).finished;
+    }).then(() => {
+      document.documentElement.classList.remove("is-featured-entry");
+    });
+  }
+}
+</script>
+</body>
+</html>
