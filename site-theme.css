@@ -407,13 +407,17 @@ footer{color:#eef1f4;text-shadow:0 1px rgba(40,49,58,.35)}
 .route-view .image-overlay .image-index{color:rgba(255,255,255,.82);font-size:11px}
 .route-view .image-stage-shell:hover .image-stage:not(.is-video),.route-view .image-stage-shell:focus-visible .image-stage:not(.is-video){filter:blur(3px)}
 .route-view .image-stage-shell:hover .image-overlay,.route-view .image-stage-shell:focus-visible .image-overlay{opacity:1;transform:none}
-.route-view .stage-video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#111}
+.route-view .stage-video,.route-view .stage-embed{position:absolute;inset:0;width:100%;height:100%;background:#111}
+.route-view .stage-video{object-fit:contain}
+.route-view .stage-embed{z-index:2;border:0}
+.route-view .stage-embed[hidden]{display:none}
 .route-view .video-player{position:absolute;inset:0;z-index:3;pointer-events:none}
 .route-view .video-player[hidden]{display:none}
 .route-view .video-play-button{position:absolute;top:50%;left:50%;display:grid;place-items:center;width:68px;height:68px;padding:0;transform:translate(-50%,-50%);border:1px solid rgba(255,255,255,.82);border-radius:50%;background:rgba(20,29,37,.78);box-shadow:0 3px 14px rgba(0,0,0,.32);color:#fff;cursor:pointer;pointer-events:auto;transition:opacity .2s,background .2s}
 .route-view .video-play-button:hover,.route-view .video-play-button:focus-visible{background:rgba(22,130,203,.92)}
 .route-view .video-play-button svg{width:26px;height:26px;fill:currentColor}
 .route-view .video-player.is-playing .video-play-button{visibility:hidden;opacity:0}
+.route-view .video-player.is-embedded .video-control-bar{display:none}
 .route-view .video-control-bar{position:absolute;right:12px;bottom:12px;left:12px;display:flex;align-items:center;gap:12px;padding:9px 12px;border:1px solid rgba(255,255,255,.25);border-radius:10px;background:rgba(20,29,37,.82);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .2s,visibility .2s}
 .route-view .image-stage-shell:hover .video-player.is-playing .video-control-bar,.route-view .video-player.is-playing:focus-within .video-control-bar{opacity:1;visibility:visible;pointer-events:auto}
 .route-view .video-pause-button{display:grid;place-items:center;width:30px;height:30px;padding:0;border:0;background:transparent;color:#fff;cursor:pointer}

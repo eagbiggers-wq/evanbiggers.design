@@ -60,13 +60,17 @@ nav a:hover,footer a:hover{text-decoration:underline;text-underline-offset:4px}
 .image-overlay .image-index{color:rgba(255,255,255,.82);font-size:11px}
 .image-stage-shell:hover .image-stage:not(.is-video),.image-stage-shell:focus-visible .image-stage:not(.is-video){filter:blur(3px)}
 .image-stage-shell:hover .image-overlay,.image-stage-shell:focus-visible .image-overlay{opacity:1;transform:none}
-.stage-video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#111}
+.stage-video,.stage-embed{position:absolute;inset:0;width:100%;height:100%;background:#111}
+.stage-video{object-fit:contain}
+.stage-embed{z-index:2;border:0}
+.stage-embed[hidden]{display:none}
 .video-player{position:absolute;inset:0;z-index:3;pointer-events:none}
 .video-player[hidden]{display:none}
 .video-play-button{position:absolute;top:50%;left:50%;display:grid;place-items:center;width:68px;height:68px;padding:0;transform:translate(-50%,-50%);border:1px solid rgba(255,255,255,.82);border-radius:50%;background:rgba(20,29,37,.78);box-shadow:0 3px 14px rgba(0,0,0,.32);color:#fff;cursor:pointer;pointer-events:auto;transition:opacity .2s,background .2s}
 .video-play-button:hover,.video-play-button:focus-visible{background:rgba(22,130,203,.92)}
 .video-play-button svg{width:26px;height:26px;fill:currentColor}
 .video-player.is-playing .video-play-button{visibility:hidden;opacity:0}
+.video-player.is-embedded .video-control-bar{display:none}
 .video-control-bar{position:absolute;right:12px;bottom:12px;left:12px;display:flex;align-items:center;gap:12px;padding:9px 12px;border:1px solid rgba(255,255,255,.25);border-radius:10px;background:rgba(20,29,37,.82);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .2s,visibility .2s}
 .image-stage-shell:hover .video-player.is-playing .video-control-bar,.video-player.is-playing:focus-within .video-control-bar{opacity:1;visibility:visible;pointer-events:auto}
 .video-pause-button{display:grid;place-items:center;width:30px;height:30px;padding:0;border:0;background:transparent;color:#fff;cursor:pointer}
@@ -174,7 +178,7 @@ const collections = {
         slides: [
         { image: "KCSC Artboards/kcsc_wantsyou.png", subtitle: "Wants You", description: "KCSC Radio advertising graphic." },
         { image: "KCSC Artboards/kcsc_makers.png", subtitle: "Makers", description: "KCSC Radio advertising graphic." },
-        { image: "KCSC Artboards/kcsc_youthquake.png", video: "Youthquake_ KCSC Session_720p.mp4", subtitle: "Youthquake", description: "KCSC Radio advertising graphic." },
+        { image: "KCSC Artboards/kcsc_youthquake.png", youtube: "https://www.youtube.com/embed/uJsvPuzQ-Zs", subtitle: "Youthquake", description: "KCSC Radio advertising graphic." },
         { image: "KCSC Artboards/kcsc_holiday.png", subtitle: "Holiday", description: "KCSC Radio advertising graphic." },
         { image: "KCSC Artboards/kcsc_chicochella.png", subtitle: "Chicochella", description: "KCSC Radio advertising graphic." },
         { image: "KCSC Artboards/kcsc_bargainbin.png", subtitle: "Bargain Bin", description: "KCSC Radio advertising graphic." }
@@ -244,6 +248,13 @@ stageVideo.preload = "metadata";
 stageVideo.playsInline = true;
 stageVideo.hidden = true;
 imageStage.append(stageVideo);
+const stageEmbed = document.createElement("iframe");
+stageEmbed.className = "stage-embed";
+stageEmbed.title = "Youthquake video";
+stageEmbed.allow = "autoplay; encrypted-media; picture-in-picture; web-share";
+stageEmbed.allowFullscreen = true;
+stageEmbed.hidden = true;
+imageStage.append(stageEmbed);
 const videoPlayer = document.createElement("div");
 videoPlayer.className = "video-player";
 videoPlayer.hidden = true;
@@ -278,7 +289,15 @@ const playVideo = () => {
   });
 };
 videoPlayButton.addEventListener("click", () => {
-  if (stageVideo.paused) playVideo();
+  const activeMedia = slides[currentSlide];
+  if (activeMedia.youtube) {
+    const embedUrl = new URL(activeMedia.youtube);
+    embedUrl.searchParams.set("autoplay", "1");
+    stageEmbed.src = embedUrl.href;
+    stageEmbed.hidden = false;
+    stageImage.hidden = true;
+    videoPlayer.classList.add("is-playing", "is-embedded");
+  } else if (stageVideo.paused) playVideo();
   else stageVideo.pause();
 });
 videoPauseButton.addEventListener("click", () => {
@@ -368,19 +387,23 @@ function renderSlide(index, requestedSequenceIndex) {
   const nextSequenceIndex = Number.isInteger(requestedSequenceIndex)
     ? requestedSequenceIndex
     : activeSequenceIndex + direction;
-  if (slides[currentSlide]?.video && currentSlide !== nextSlideIndex) {
+  if ((slides[currentSlide]?.video || slides[currentSlide]?.youtube) && currentSlide !== nextSlideIndex) {
     stageVideo.pause();
     stageVideo.currentTime = 0;
   }
   currentSlide = nextSlideIndex;
   activeSequenceIndex = nextSequenceIndex;
   const slide = slides[currentSlide];
-  imageStage.classList.toggle("is-video", Boolean(slide.video));
+  const hasVideo = Boolean(slide.video || slide.youtube);
+  imageStage.classList.toggle("is-video", hasVideo);
   stagePlaceholder.hidden = Boolean(slide.image);
   stageImage.hidden = !slide.image || Boolean(slide.video);
   if (slide.image) stageImage.src = slide.image;
   else stageImage.removeAttribute("src");
   if (slide.video) {
+    stageEmbed.removeAttribute("src");
+    stageEmbed.hidden = true;
+    videoPlayer.classList.remove("is-embedded");
     stageVideo.poster = slide.image || "";
     if (stageVideo.getAttribute("src") !== slide.video) {
       stageVideo.src = slide.video;
@@ -390,14 +413,27 @@ function renderSlide(index, requestedSequenceIndex) {
     videoPlayer.hidden = false;
     videoError.hidden = true;
     videoTimeline.value = "0";
-  } else {
+  } else if (slide.youtube) {
     stageVideo.pause();
     stageVideo.removeAttribute("src");
     stageVideo.removeAttribute("poster");
     stageVideo.load();
     stageVideo.hidden = true;
+    stageEmbed.removeAttribute("src");
+    stageEmbed.hidden = true;
+    videoPlayer.hidden = false;
+    videoPlayer.classList.remove("is-playing", "is-embedded");
+    videoError.hidden = true;
+  } else {
+    stageVideo.pause();
+    stageVideo.removeAttribute("src");
+    stageVideo.removeAttribute("poster");
+    stageVideo.load();
+    stageEmbed.removeAttribute("src");
+    stageEmbed.hidden = true;
+    stageVideo.hidden = true;
     videoPlayer.hidden = true;
-    videoPlayer.classList.remove("is-playing");
+    videoPlayer.classList.remove("is-playing", "is-embedded");
   }
   imageStage.dataset.view = String(currentSlide % 3);
   imageStage.setAttribute("aria-label", `${project.title}: ${slide.subtitle}`);

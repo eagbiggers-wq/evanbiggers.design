@@ -222,7 +222,7 @@
       slides: [
         { image: "KCSC Artboards/kcsc_wantsyou.png", subtitle: "Wants You", description: "KCSC Radio advertising graphic." },
         { image: "KCSC Artboards/kcsc_makers.png", subtitle: "Makers", description: "KCSC Radio advertising graphic." },
-        { image: "KCSC Artboards/kcsc_youthquake.png", video: "Youthquake_ KCSC Session_720p.mp4", subtitle: "Youthquake", description: "KCSC Radio advertising graphic." },
+        { image: "KCSC Artboards/kcsc_youthquake.png", youtube: "https://www.youtube.com/embed/uJsvPuzQ-Zs", subtitle: "Youthquake", description: "KCSC Radio advertising graphic." },
         { image: "KCSC Artboards/kcsc_holiday.png", subtitle: "Holiday", description: "KCSC Radio advertising graphic." },
         { image: "KCSC Artboards/kcsc_chicochella.png", subtitle: "Chicochella", description: "KCSC Radio advertising graphic." },
         { image: "KCSC Artboards/kcsc_bargainbin.png", subtitle: "Bargain Bin", description: "KCSC Radio advertising graphic." }
@@ -1688,9 +1688,10 @@
         <div class="cell showcase">
           <div class="image-stage-shell" tabindex="0" role="group" aria-label="Image preview">
             <div class="image-stage" role="group" aria-label="${escapeHtml(project.title)}: ${escapeHtml(firstSlide.subtitle)}">
-              <span aria-hidden="true" ${firstSlide.image || firstSlide.video ? "hidden" : ""}>large image</span>
+              <span aria-hidden="true" ${firstSlide.image || firstSlide.video || firstSlide.youtube ? "hidden" : ""}>large image</span>
               <img class="stage-image" alt="" ${slideSource} ${firstSlide.image ? "" : "hidden"}>
               <video class="stage-video" preload="metadata" playsinline hidden></video>
+              <iframe class="stage-embed" title="${escapeHtml(firstSlide.subtitle)}" allow="autoplay; encrypted-media; picture-in-picture; web-share" allowfullscreen hidden></iframe>
               <div class="video-player" hidden>
                 <button class="video-play-button" type="button" aria-label="Play video">
                   <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.8c0-1.1 1.2-1.8 2.2-1.2l11 6.7a2 2 0 0 1 0 3.4l-11 6.7A1.5 1.5 0 0 1 7 19.2Z"/></svg>
@@ -1730,6 +1731,7 @@
     const stageImage = staging.querySelector(".stage-image");
     stageImage.draggable = false;
     const stageVideo = staging.querySelector(".stage-video");
+    const stageEmbed = staging.querySelector(".stage-embed");
     const videoPlayer = staging.querySelector(".video-player");
     const videoPlayButton = staging.querySelector(".video-play-button");
     const videoPauseButton = staging.querySelector(".video-pause-button");
@@ -1812,7 +1814,15 @@
       });
     };
     videoPlayButton.addEventListener("click", () => {
-      if (stageVideo.paused) playVideo();
+      const activeMedia = slides[activeSlide];
+      if (activeMedia.youtube) {
+        const embedUrl = new URL(activeMedia.youtube);
+        embedUrl.searchParams.set("autoplay", "1");
+        stageEmbed.src = embedUrl.href;
+        stageEmbed.hidden = false;
+        stageImage.hidden = true;
+        videoPlayer.classList.add("is-playing", "is-embedded");
+      } else if (stageVideo.paused) playVideo();
       else stageVideo.pause();
     });
     videoPauseButton.addEventListener("click", () => {
@@ -1833,6 +1843,9 @@
     if (firstSlide.video) {
       stageVideo.src = firstSlide.video;
       stageVideo.hidden = false;
+      videoPlayer.hidden = false;
+      stagePlaceholder.hidden = true;
+    } else if (firstSlide.youtube) {
       videoPlayer.hidden = false;
       stagePlaceholder.hidden = true;
     }
@@ -1856,7 +1869,7 @@
           : activeSequenceIndex + direction
         : 0;
       const slide = slides[nextIndex];
-      if (slides[activeSlide]?.video && activeSlide !== nextIndex) {
+      if ((slides[activeSlide]?.video || slides[activeSlide]?.youtube) && activeSlide !== nextIndex) {
         stageVideo.pause();
         stageVideo.currentTime = 0;
       }
@@ -1877,10 +1890,14 @@
       if (currentToken !== slideToken) return;
       activeSlide = nextIndex;
       activeSequenceIndex = nextSequenceIndex;
-      stage.classList.toggle("is-video", Boolean(slide.video));
+      const hasVideo = Boolean(slide.video || slide.youtube);
+      stage.classList.toggle("is-video", hasVideo);
       stageImage.hidden = !slide.image || Boolean(slide.video);
       stagePlaceholder.hidden = Boolean(slide.image);
       if (slide.video) {
+        stageEmbed.removeAttribute("src");
+        stageEmbed.hidden = true;
+        videoPlayer.classList.remove("is-embedded");
         stageVideo.poster = slide.image || "";
         if (stageVideo.getAttribute("src") !== slide.video) {
           stageVideo.src = slide.video;
@@ -1890,14 +1907,27 @@
         videoPlayer.hidden = false;
         videoError.hidden = true;
         videoTimeline.value = "0";
-      } else {
+      } else if (slide.youtube) {
         stageVideo.pause();
         stageVideo.removeAttribute("src");
         stageVideo.removeAttribute("poster");
         stageVideo.load();
         stageVideo.hidden = true;
+        stageEmbed.removeAttribute("src");
+        stageEmbed.hidden = true;
+        videoPlayer.hidden = false;
+        videoPlayer.classList.remove("is-playing", "is-embedded");
+        videoError.hidden = true;
+      } else {
+        stageVideo.pause();
+        stageVideo.removeAttribute("src");
+        stageVideo.removeAttribute("poster");
+        stageVideo.load();
+        stageEmbed.removeAttribute("src");
+        stageEmbed.hidden = true;
+        stageVideo.hidden = true;
         videoPlayer.hidden = true;
-        videoPlayer.classList.remove("is-playing");
+        videoPlayer.classList.remove("is-playing", "is-embedded");
       }
       stage.setAttribute("aria-label", `${project.title}: ${slide.subtitle}`);
       indexLabel.textContent = `${String(nextIndex + 1).padStart(2, "0")} / ${String(slides.length).padStart(2, "0")}`;
@@ -1973,6 +2003,7 @@
   function renderRoute() {
     const routeToken = ++activeRouteToken;
     routeView.querySelector(".stage-video")?.pause();
+    routeView.querySelector(".stage-embed")?.removeAttribute("src");
     if (activeArrowHandler) {
       document.removeEventListener("keydown", activeArrowHandler);
       activeArrowHandler = null;
